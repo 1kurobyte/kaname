@@ -223,4 +223,34 @@ pub fn build(b: *std.Build) void {
     qemu_limine.step.dependOn(&limine_install.step);
 
     run_limine_step.dependOn(&qemu_limine.step);
+
+    // Tests run as a normal host process, so they must be built for the
+    // native target — not the freestanding kernel target. kcov can only
+    // instrument and execute a host executable; handing it a freestanding
+    // kernel image makes the child process fault on its first instruction.
+    // Debug optimization keeps line coverage accurate. Only host-safe code
+    // may be referenced from kernel/tests.zig (see that file).
+    const test_module = b.createModule(.{
+        .root_source_file = b.path("kernel/tests.zig"),
+        .target = b.resolveTargetQuery(.{}),
+        .optimize = .Debug,
+        .omit_frame_pointer = false,
+    });
+    // Force the LLVM backend for the test binary. Zig's self-hosted x86_64
+    // backend emits the DW_LNCT_LLVM_source (0x2001) line-table extension,
+    // embedding source text where kcov expects a file path; kcov can't parse
+    // it and silently drops every user file from the report. The LLVM backend
+    // emits a plain DWARF 5 file table that kcov reads correctly.
+    const kernel_tests = b.addTest(.{
+        .root_module = test_module,
+        .use_llvm = true,
+    });
+    const run_tests = b.addRunArtifact(kernel_tests);
+    const tests_step = b.step("test", "Run tests");
+    tests_step.dependOn(&run_tests.step);
+
+    const cov_step = b.step("cov", "Generate code coverage");
+    const run_cov = b.addSystemCommand(&.{ "kcov", "--clean", "--include-pattern=kernel/", "kcov-output/" });
+    run_cov.addArtifactArg(kernel_tests);
+    cov_step.dependOn(&run_cov.step);
 }

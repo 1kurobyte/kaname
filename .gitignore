@@ -7,3 +7,4 @@ iso-limine/
 kaname-grub.iso
 kaname-limine.iso
 serial.log
+kcov-output/
