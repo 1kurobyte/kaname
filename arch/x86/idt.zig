@@ -96,8 +96,8 @@ pub const InterruptFrame = extern struct {
 
 pub const InterruptHandler = *const fn (*InterruptFrame) void;
 
-var handlers: [IDT_SIZE]?InterruptHandler = [_]?InterruptHandler{null} ** IDT_SIZE;
-var idt_entries: [IDT_SIZE]IdtEntry = [_]IdtEntry{IdtEntry.nil} ** IDT_SIZE;
+var handlers: [IDT_SIZE]?InterruptHandler = @splat(null);
+var idt_entries: [IDT_SIZE]IdtEntry = @splat(IdtEntry.nil);
 
 fn hasErrorCode(vector: InterruptVector) bool {
     return switch (vector) {

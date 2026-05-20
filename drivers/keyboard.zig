@@ -49,7 +49,7 @@ pub fn getKey() ?Key {
 
 // US QWERTY, normal
 const scancode_normal = blk: {
-    var table = [_]u8{0} ** 128;
+    var table: [128]u8 = @splat(0);
     table[0x02] = '1';
     table[0x03] = '2';
     table[0x04] = '3';
@@ -106,7 +106,7 @@ const scancode_normal = blk: {
 
 // US QWERTY, shifted
 const scancode_shifted = blk: {
-    var table = [_]u8{0} ** 128;
+    var table: [128]u8 = @splat(0);
     table[0x02] = '!';
     table[0x03] = '@';
     table[0x04] = '#';

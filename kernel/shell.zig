@@ -89,9 +89,9 @@ fn cmdClear(_: []const u8) void {
 
 fn cmdStack(_: []const u8) void {
     const header_str = "=== Stack Trace ";
-    terminal.print(header_str ++ ("=" ** (80 - header_str.len)), .{});
+    terminal.print(header_str ++ (@as([80 - header_str.len]u8, @splat('='))), .{});
     @import("debug/stack.zig").printStack();
-    terminal.print("=" ** 80, .{});
+    terminal.print(&@as([80]u8, @splat('=')), .{});
 }
 
 fn cmdSymbols(_: []const u8) void {
