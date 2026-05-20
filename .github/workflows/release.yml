@@ -6,20 +6,14 @@ on:
       - 'v*'
 
 jobs:
-  release:
-    name: Release ISOs (${{ matrix.bootloader }})
+  build:
+    name: Build ISO (${{ matrix.bootloader }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         bootloader: [ grub, limine ]
         arch: [ x86 ]
-
-    permissions:
-      attestations: write
-      contents: write
-      id-token: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -54,28 +48,32 @@ jobs:
           sudo cp limine/limine /usr/local/bin/limine
           sudo chmod +x /usr/local/bin/limine
 
-      - name: Build ISO (GRUB)
-        if: matrix.bootloader == 'grub'
-        run: make iso-grub
+      - name: Build ISO (${{ matrix.bootloader }})
+        run: make iso-${{ matrix.bootloader }}
 
-      - name: Build ISO (Limine)
-        if: matrix.bootloader == 'limine'
-        run: make iso-limine
-
-      - name: Rename ISO to release name (GRUB)
-        if: matrix.bootloader == 'grub'
-        run: mv kaname-grub.iso kaname-${{ matrix.arch }}-grub.iso
-
-      - name: Rename ISO to release name (Limine)
-        if: matrix.bootloader == 'limine'
-        run: mv kaname-limine.iso kaname-${{ matrix.arch }}-limine.iso
+      - name: Rename ISO to release name (${{ matrix.bootloader }})
+        run: mv kaname-${{ matrix.bootloader }}.iso kaname-${{ matrix.arch }}-${{ matrix.bootloader }}.iso
 
       - name: Upload ISO artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kaname-${{ matrix.arch }}-${{ matrix.bootloader }}
           path: kaname-${{ matrix.arch }}-${{ matrix.bootloader }}.iso
           if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - name: Download all ISO artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: kaname-*
+          merge-multiple: true
+          path: release-isos
 
       - name: Attach ISO to GitHub Release
         uses: softprops/action-gh-release@v2
