@@ -4,6 +4,7 @@ const drivers = @import("drivers");
 const std = @import("std");
 const shell = @import("shell.zig");
 const @"42" = @import("42.zig");
+const debug = @import("debug/stack.zig");
 
 comptime {
     _ = arch.boot;
@@ -103,8 +104,18 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
     unreachable;
 }
 
+var panicking = false;
+
 pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
+    if (panicking) {
+        @branchHint(.unlikely);
+        drivers.serial.print("DOUBLE PANIC\n", .{});
+        while (true) asm volatile ("cli; hlt");
+    }
+    panicking = true;
+    drivers.terminal.setColor(.init(.light_red, .black));
     drivers.serial.print("PANIC: {s}\n", .{msg});
     drivers.terminal.print("PANIC: {s}\n", .{msg});
+    debug.printStack(null);
     while (true) asm volatile ("cli; hlt");
 }

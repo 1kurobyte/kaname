@@ -217,6 +217,17 @@ pub fn init() void {
     switchActive(0);
 }
 
+pub fn setColor(color: vga.EntryColor) void {
+    terminals[active_idx].color = color;
+}
+
+pub fn initPrompts() void {
+    for (&terminals) |*t| {
+        for ("> ") |c| t.putchar(c);
+    }
+    terminals[active_idx].flush();
+}
+
 const Writer = struct {
     const W = std.Io.Writer;
 

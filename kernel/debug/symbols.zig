@@ -9,7 +9,7 @@ const Symbol = struct {
 
 var symbols_sorted = false;
 
-fn ensureSorted() void {
+pub fn ensureSorted() void {
     if (symbols_sorted) return;
 
     var i: usize = 1;
@@ -61,11 +61,14 @@ fn buildSymbolTable(comptime modules: anytype) []const Symbol {
 }
 
 const built = buildSymbolTable(.{
+    @import("abi"),
     @import("arch"),
     @import("drivers"),
     @import("../kernel.zig"),
     @import("../shell.zig"),
     @import("../42.zig"),
+    @import("stack.zig"),
+    @import("symbols.zig"),
 });
 
 var symbols: [built.len]Symbol = blk: {
@@ -76,11 +79,12 @@ var symbols: [built.len]Symbol = blk: {
 
 pub fn printSymbols() void {
     ensureSorted();
-    terminal.print("=== Symbol Table ({d} entries) ===\n", .{symbols.len});
+    const header_str = std.fmt.comptimePrint("=== Symbol Table ({d} entries) ", .{symbols.len});
+    terminal.print(header_str ++ (@as([80 - header_str.len]u8, @splat('='))), .{});
     for (symbols) |sym| {
         terminal.print("  0x{x:0>8} - {s}\n", .{ @intFromPtr(sym.func), sym.name });
     }
-    terminal.print("==================================\n", .{});
+    terminal.print(&@as([80]u8, @splat('=')), .{});
 }
 
 pub fn resolve(addr: usize) []const u8 {

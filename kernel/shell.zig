@@ -19,6 +19,8 @@ const commands = [_]Command{
     .{ .name = "clear", .description = "Clear screen", .func = cmdClear },
     .{ .name = "stack", .description = "Print kernel stack", .func = cmdStack },
     .{ .name = "symbols", .description = "Print available functions", .func = cmdSymbols },
+    .{ .name = "panic", .description = "Manually cause a kernel panic", .func = cmdPanic },
+    .{ .name = "halt", .description = "Halt the machine", .func = cmdHalt },
 };
 
 fn cmdHelp(_: []const u8) void {
@@ -72,7 +74,6 @@ fn cmdCpuinfo(_: []const u8) void {
     });
     printFlags(cpuid.features());
     printFlags(cpuid.extFeatures());
-    terminal.print("\n", .{});
     terminal.print(
         \\
         \\address sizes : {} bits physical, {} bits virtual
@@ -88,14 +89,27 @@ fn cmdClear(_: []const u8) void {
 }
 
 fn cmdStack(_: []const u8) void {
+    const ebp = asm volatile ("mov %%ebp, %[ret]"
+        : [ret] "=r" (-> usize),
+    );
+
     const header_str = "=== Stack Trace ";
     terminal.print(header_str ++ (@as([80 - header_str.len]u8, @splat('='))), .{});
-    @import("debug/stack.zig").printStack();
+    @import("debug/stack.zig").printStack(ebp);
     terminal.print(&@as([80]u8, @splat('=')), .{});
 }
 
 fn cmdSymbols(_: []const u8) void {
     @import("debug/symbols.zig").printSymbols();
+}
+
+fn cmdPanic(_: []const u8) void {
+    @panic("manual kernel panic");
+}
+
+fn cmdHalt(_: []const u8) void {
+    terminal.write("System halted.\n");
+    asm volatile ("cli; hlt");
 }
 
 fn dispatch(input: []const u8) void {

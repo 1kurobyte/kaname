@@ -67,7 +67,7 @@ comptime {
 export var multiboot2_header: Multiboot2Header align(8) linksection(".multiboot2") = makeHeader();
 
 pub const STACK_SIZE = 4 * 4096;
-export var stack: [STACK_SIZE]u8 align(16) linksection(".bss") = undefined;
+pub export var stack: [STACK_SIZE]u8 align(16) linksection(".bss") = undefined;
 
 // Enable x87 FPU
 const _fpu_init =
