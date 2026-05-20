@@ -67,6 +67,7 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
                 },
             }
         }
+
         pub fn onACPIv1(tag: *arch.multiboot2.AcpiRsdpV1Tag) void {
             drivers.terminal.print("ACPI v1 detected\n", .{});
             if (!tag.rsdp.isValid()) {
@@ -91,9 +92,21 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
                 drivers.terminal.print("Invalid ACPI signature\n", .{});
                 return;
             }
+
+            // todo: use xsdt instead
+            drivers.acpi.init(tag.rsdp.rsdt_address);
+            drivers.serial.print(
+                \\FADT at 0x{X}
+                \\Preferred PM profile: {}
+                \\
+            , .{
+                @intFromPtr(drivers.acpi.fadt),
+                drivers.acpi.fadt.preferred_pm_profile,
+            });
         }
     });
 
+    drivers.terminal.initPrompts();
     shell.init();
 
     // main loop
