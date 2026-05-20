@@ -161,7 +161,7 @@ fn sigToInt(sig: [4]u8) u32 {
 }
 
 pub fn init(sdt_addr: u32) void {
-    @setRuntimeSafety(false); // prevent alignment panic
+    // @setRuntimeSafety(false); // prevent alignment panic
     const sdt = @as(*SdtHeader, @ptrFromInt(sdt_addr));
     const entriesCount = (sdt.length - @sizeOf(SdtHeader)) / @sizeOf(usize);
     const entries = @as([*]const usize, @ptrFromInt(sdt_addr + @sizeOf(SdtHeader)))[0..entriesCount];
@@ -186,20 +186,20 @@ fn findS5(dsdt: [*]const u8, len: usize) ?[*]const u8 {
 }
 
 fn getSlpTypa(s5: [*]const u8) u8 {
-    const offset: usize = if (s5[4] == 0x08) 8 else 7;
-    return s5[offset];
+    return s5[8];
 }
 
 pub var fadt: *const Fadt = undefined;
 
 pub fn shutdown() void {
-    const vga = @import("vga.zig");
+    @setRuntimeSafety(false);
     const serial = @import("serial.zig");
+    const terminal = @import("terminal.zig");
     const ports = @import("arch").ports;
     const dsdt: *const SdtHeader = @ptrFromInt(fadt.dsdt);
     const dsdt_bytes: [*]const u8 = @ptrCast(dsdt);
     const s5 = findS5(dsdt_bytes, dsdt.length) orelse {
-        vga.print("S5 not found\n", .{});
+        terminal.print("S5 not found\n", .{});
         return;
     };
     const slp_typa = getSlpTypa(s5);
@@ -216,6 +216,7 @@ pub fn shutdown() void {
     }
 
     serial.print("Writing 0x{X} to 0x{X}\n", .{ val, fadt.pm1a_ctrl_block });
+    terminal.print("Writing 0x{X} to 0x{X}\n", .{ val, fadt.pm1a_ctrl_block });
 
     ports.outw(@truncate(fadt.pm1a_ctrl_block), val);
     if (fadt.pm1b_ctrl_block != 0) {
@@ -223,7 +224,8 @@ pub fn shutdown() void {
     }
 
     asm volatile ("hlt");
-    serial.print("Shutdown failed\n", .{});
+    serial.print("Shutdown failed. Halting.\n", .{});
+    terminal.print("Shutdown failed. Halting.\n", .{});
 
     // Shutdown didn't occur, halt indefinitely
     while (true) {
