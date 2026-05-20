@@ -56,7 +56,7 @@ jobs:
 
       - name: Build ISO (GRUB)
         if: matrix.bootloader == 'grub'
-        run: make iso
+        run: make iso-grub
 
       - name: Build ISO (Limine)
         if: matrix.bootloader == 'limine'
@@ -64,20 +64,20 @@ jobs:
 
       - name: Rename ISO to release name (GRUB)
         if: matrix.bootloader == 'grub'
-        run: mv kfs.iso kfs-${{ matrix.arch }}-grub.iso
+        run: mv kaname-grub.iso kaname-${{ matrix.arch }}-grub.iso
 
       - name: Rename ISO to release name (Limine)
         if: matrix.bootloader == 'limine'
-        run: mv kfs-limine.iso kfs-${{ matrix.arch }}-limine.iso
+        run: mv kaname-limine.iso kaname-${{ matrix.arch }}-limine.iso
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kfs-${{ matrix.arch }}-${{ matrix.bootloader }}
-          path: kfs-${{ matrix.arch }}-${{ matrix.bootloader }}.iso
+          name: kaname-${{ matrix.arch }}-${{ matrix.bootloader }}
+          path: kaname-${{ matrix.arch }}-${{ matrix.bootloader }}.iso
           if-no-files-found: error
 
       - name: Attach ISO to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: kfs-${{ matrix.arch }}-${{ matrix.bootloader }}.iso
+          files: kaname-${{ matrix.arch }}-${{ matrix.bootloader }}.iso

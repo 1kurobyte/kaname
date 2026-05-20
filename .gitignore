@@ -2,8 +2,8 @@ toolchain/
 .zig-cache/
 zig-out/
 *.o
-iso/
+iso-grub/
 iso-limine/
-kfs.iso
-kfs-limine.iso
+kaname-grub.iso
+kaname-limine.iso
 serial.log

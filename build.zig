@@ -53,7 +53,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const kernel = b.addExecutable(.{
-        .name = "kfs.kernel",
+        .name = "kaname.kernel",
         .root_module = kernel_module,
     });
 
@@ -77,23 +77,23 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(kernel);
 
-    const iso_step = b.step("iso", "Build bootable ISO image");
+    const iso_step = b.step("iso-grub", "Build bootable GRUB ISO image");
 
-    const mkdir_cmd = b.addSystemCommand(&.{ "mkdir", "-p", "iso/boot/grub" });
+    const mkdir_cmd = b.addSystemCommand(&.{ "mkdir", "-p", "iso-grub/boot/grub" });
 
     const cp_kernel_cmd = b.addSystemCommand(&.{"cp"});
     cp_kernel_cmd.addArtifactArg(kernel);
-    cp_kernel_cmd.addArg("iso/boot/kfs.kernel");
+    cp_kernel_cmd.addArg("iso/boot/kaname.kernel");
     cp_kernel_cmd.step.dependOn(&mkdir_cmd.step);
 
-    const cp_grub_cmd = b.addSystemCommand(&.{ "cp", "meta/grub.cfg", "iso/boot/grub/grub.cfg" });
+    const cp_grub_cmd = b.addSystemCommand(&.{ "cp", "meta/grub.cfg", "iso-grub/boot/grub/grub.cfg" });
     cp_grub_cmd.step.dependOn(&mkdir_cmd.step);
 
     const mkrescue = b.addSystemCommand(&.{
         "grub-mkrescue",
         "-o",
-        "kfs.iso",
-        "iso",
+        "kaname-grub.iso",
+        "iso-grub",
         "--compress=xz",
         "--core-compress=xz",
         "--fonts=",
@@ -107,7 +107,7 @@ pub fn build(b: *std.Build) void {
 
     iso_step.dependOn(&mkrescue.step);
 
-    const run_step = b.step("run", "Run kernel in QEMU");
+    const run_step = b.step("run-grub", "Run kernel in QEMU using GRUB ISO");
 
     const qemu_version = "qemu-system-" ++ switch (cpu_arch) {
         .aarch64 => "aarch64",
@@ -136,7 +136,7 @@ pub fn build(b: *std.Build) void {
     const qemu = b.addSystemCommand(&.{
         qemu_version,
         "-cdrom",
-        "kfs.iso",
+        "kaname-grub.iso",
         "-serial",
         "stdio",
     });
@@ -153,7 +153,7 @@ pub fn build(b: *std.Build) void {
 
     const cp_kernel_limine = b.addSystemCommand(&.{"cp"});
     cp_kernel_limine.addArtifactArg(kernel);
-    cp_kernel_limine.addArg(limine_iso_dir ++ "/boot/kfs.kernel");
+    cp_kernel_limine.addArg(limine_iso_dir ++ "/boot/kaname.kernel");
     cp_kernel_limine.step.dependOn(&mkdir_limine.step);
 
     const cp_limine_conf = b.addSystemCommand(&.{
@@ -186,7 +186,7 @@ pub fn build(b: *std.Build) void {
         "-boot-load-size",  "4",                              "-boot-info-table",
         "--efi-boot",       "boot/limine/limine-uefi-cd.bin", "-efi-boot-part",
         "--efi-boot-image", "--protective-msdos-label",       limine_iso_dir,
-        "-o",               "kfs-limine.iso",
+        "-o",               "kaname-limine.iso",
     });
     xorriso_limine.step.dependOn(&cp_kernel_limine.step);
     xorriso_limine.step.dependOn(&cp_limine_conf.step);
@@ -194,7 +194,7 @@ pub fn build(b: *std.Build) void {
     xorriso_limine.step.dependOn(&cp_limine_bios_cd.step);
     xorriso_limine.step.dependOn(&cp_limine_uefi_cd.step);
 
-    const limine_install = b.addSystemCommand(&.{ "limine", "bios-install", "kfs-limine.iso" });
+    const limine_install = b.addSystemCommand(&.{ "limine", "bios-install", "kaname-limine.iso" });
     limine_install.step.dependOn(&xorriso_limine.step);
 
     limine_iso_step.dependOn(&limine_install.step);
@@ -204,7 +204,7 @@ pub fn build(b: *std.Build) void {
     const qemu_limine = b.addSystemCommand(&.{
         qemu_version,
         "-cdrom",
-        "kfs-limine.iso",
+        "kaname-limine.iso",
         "-serial",
         "stdio",
     });

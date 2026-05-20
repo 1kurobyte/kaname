@@ -2,7 +2,6 @@
 # Config
 # =========================
 
-ZIG_VERSION := 0.16.0
 ZIG_FLAGS :=
 ZIG := zig
 
@@ -24,9 +23,9 @@ bonus:
 	$(ZIG) build -Dfull=true $(ZIG_FLAGS)
 
 
-.PHONY: iso
-iso:
-	$(ZIG) build iso
+.PHONY: iso-grub
+iso-grub:
+	$(ZIG) build iso-grub
 
 
 .PHONY: iso-limine
@@ -34,9 +33,9 @@ iso-limine:
 	$(ZIG) build iso-limine
 
 
-.PHONY: run
-run:
-	$(ZIG) build run $(ZIG_FLAGS)
+.PHONY: run-grub
+run-grub:
+	$(ZIG) build run-grub $(ZIG_FLAGS)
 
 
 .PHONY: run-limine
@@ -44,10 +43,14 @@ run-limine:
 	$(ZIG) build run-limine $(ZIG_FLAGS)
 
 
-.PHONY: run-bonus
-run-bonus:
-	$(ZIG) build run -Dfull=true $(ZIG_FLAGS)
+.PHONY: run-grub-bonus
+run-grub-bonus:
+	$(ZIG) build run-grub -Dfull=true $(ZIG_FLAGS)
 
+
+.PHONY: run-limine-bonus
+run-limine-bonus:
+	$(ZIG) build run-limine -Dfull=true $(ZIG_FLAGS)
 
 .PHONY: test
 test:
@@ -61,10 +64,4 @@ fmt:
 
 .PHONY: clean
 clean:
-	rm -rf zig-out .zig-cache iso kfs.iso iso-limine kfs-limine.iso
-
-
-.PHONY: distclean
-distclean: clean
-	rm -rf toolchain
-
+	rm -rf zig-out .zig-cache iso-grub kaname-grub.iso iso-limine kaname-limine.iso

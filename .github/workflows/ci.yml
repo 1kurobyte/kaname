@@ -55,7 +55,7 @@ jobs:
 
       - name: Build ISO (GRUB)
         if: matrix.bootloader == 'grub'
-        run: make iso
+        run: make iso-grub
 
       - name: Build ISO (Limine)
         if: matrix.bootloader == 'limine'
@@ -65,7 +65,7 @@ jobs:
         if: matrix.bootloader == 'grub'
         run: |
           timeout 10s qemu-system-i386 \
-            -cdrom kfs.iso \
+            -cdrom kaname-grub.iso \
             -serial stdio \
             -display none \
             -no-reboot \
@@ -76,7 +76,7 @@ jobs:
         if: matrix.bootloader == 'limine'
         run: |
           timeout 10s qemu-system-i386 \
-            -cdrom kfs-limine.iso \
+            -cdrom kaname-limine.iso \
             -serial stdio \
             -display none \
             -no-reboot \
