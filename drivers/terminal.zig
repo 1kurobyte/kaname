@@ -16,6 +16,9 @@ const Terminal = struct {
     view_row: usize, // first visible line
     total_rows: usize,
 
+    dirty_first: usize,
+    dirty_last: usize,
+
     status_color: vga.EntryColor,
     color: vga.EntryColor,
 
@@ -29,24 +32,49 @@ const Terminal = struct {
         for (0..BUF_SIZE) |i| {
             self.buffer[i] = blank;
         }
-        self.putchar('>');
-        self.putchar(' ');
+        self.markAllDirty();
     }
 
-    /// Copy internal buffer to VGA and update hardware cursor
+    fn markAllDirty(self: *Terminal) void {
+        self.dirty_first = 0;
+        self.dirty_last = ROWS - 1;
+    }
+
+    fn markClean(self: *Terminal) void {
+        self.dirty_first = ROWS;
+        self.dirty_last = 0;
+    }
+
+    fn markRowDirty(self: *Terminal, abs_row: usize) void {
+        if (abs_row < self.view_row) return;
+        const vis = abs_row - self.view_row;
+        if (vis >= ROWS) return;
+        if (self.dirty_first > self.dirty_last) {
+            self.dirty_first = vis;
+            self.dirty_last = vis;
+        } else {
+            if (vis < self.dirty_first) self.dirty_first = vis;
+            if (vis > self.dirty_last) self.dirty_last = vis;
+        }
+    }
+
     pub fn flush(self: *Terminal) void {
-        var src_row = self.view_row;
-        for (1..vga.VGA_HEIGHT) |row| {
-            if (src_row < SCROLLBACK) {
-                for (0..COLS) |col| {
-                    vga.putEntryAt(self.buffer[src_row * COLS + col], col, row);
-                }
-            } else {
-                for (0..COLS) |col| {
-                    vga.putEntryAt(vga.vgaEntry(' ', self.color), col, row);
+        if (self.dirty_first <= self.dirty_last) {
+            var vis = self.dirty_first;
+            while (vis <= self.dirty_last) : (vis += 1) {
+                const src_row = self.view_row + vis;
+                const screen_row = vis + 1;
+                if (src_row < SCROLLBACK) {
+                    for (0..COLS) |col| {
+                        vga.putEntryAt(self.buffer[src_row * COLS + col], col, screen_row);
+                    }
+                } else {
+                    for (0..COLS) |col| {
+                        vga.putEntryAt(vga.vgaEntry(' ', self.color), col, screen_row);
+                    }
                 }
             }
-            src_row += 1;
+            self.markClean();
         }
         const content_row = if (self.cursor_row >= self.view_row) self.cursor_row - self.view_row else 0;
         vga.setPosition(content_row + 1, self.cursor_col);
@@ -65,6 +93,7 @@ const Terminal = struct {
             else => {
                 if (c >= 0x20) {
                     self.buffer[self.cursor_row * COLS + self.cursor_col] = vga.vgaEntry(c, self.color);
+                    self.markRowDirty(self.cursor_row);
                     self.cursor_col += 1;
                     if (self.cursor_col >= COLS) {
                         self.cursor_col = 0;
@@ -90,6 +119,7 @@ const Terminal = struct {
             self.cursor_col = COLS - 1;
         }
         self.buffer[self.cursor_row * COLS + self.cursor_col] = vga.vgaEntry(' ', self.color);
+        self.markRowDirty(self.cursor_row);
     }
 
     pub fn clear(self: *Terminal) void {
@@ -101,6 +131,7 @@ const Terminal = struct {
         self.cursor_col = 0;
         self.view_row = 0;
         self.total_rows = 1;
+        self.markAllDirty();
         self.flush();
     }
 
@@ -117,6 +148,7 @@ const Terminal = struct {
     }
 
     fn advanceRow(self: *Terminal) void {
+        const old_view_row = self.view_row;
         self.cursor_row += 1;
 
         if (self.cursor_row >= SCROLLBACK) {
@@ -130,6 +162,7 @@ const Terminal = struct {
                 self.buffer[last_start + i] = blank;
             }
             self.cursor_row = SCROLLBACK - 1;
+            self.markAllDirty();
         }
 
         if (self.cursor_row >= self.total_rows) {
@@ -137,6 +170,11 @@ const Terminal = struct {
         }
 
         self.view_row = self.liveViewRow();
+        if (self.view_row != old_view_row) {
+            self.markAllDirty();
+        } else {
+            self.markRowDirty(self.cursor_row);
+        }
     }
 
     pub fn scrollUp(self: *Terminal) void {
@@ -146,6 +184,7 @@ const Terminal = struct {
         } else {
             self.view_row = 0;
         }
+        self.markAllDirty();
         self.flush();
     }
 
@@ -156,6 +195,7 @@ const Terminal = struct {
         if (self.view_row > live_view) {
             self.view_row = live_view;
         }
+        self.markAllDirty();
         self.flush();
     }
 };
@@ -184,6 +224,7 @@ fn renderStatusBar() void {
 pub fn switchActive(idx: usize) void {
     active_idx = idx;
     renderStatusBar();
+    terminals[idx].markAllDirty();
     terminals[idx].flush();
 }
 
@@ -244,7 +285,7 @@ const Writer = struct {
     }
 
     fn write(bytes: []const u8) void {
-        for (bytes) |c| putchar(c);
+        terminals[active_idx].write(bytes);
     }
 
     pub fn getWriter() W {
