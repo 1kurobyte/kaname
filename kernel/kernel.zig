@@ -46,6 +46,14 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
     // };
 
     arch.multiboot2.parse(mb_info, struct {
+        pub fn onMmap(tag: *arch.multiboot2.MmapTag) void {
+            for (tag.entries()) |entry| {
+                drivers.serial.print(
+                    \\[memmap] 0x{X:0>8}-0x{X:0>8} {}
+                    \\
+                , .{ entry.base_addr, entry.base_addr + entry.length - 1, entry.type });
+            }
+        }
         pub fn onFramebuffer(tag: *arch.multiboot2.FramebufferTag) void {
             const ptr: [*]u32 = @ptrFromInt(@as(usize, @truncate(tag.addr)));
             drivers.serial.print("[Framebuffer] Type: {}\n", .{tag.type});

@@ -16,7 +16,7 @@ pub const TagType = enum(u32) {
     // module = 3,
     // basic_meminfo = 4,
     // bootdev = 5,
-    // mmap = 6,
+    mmap = 6,
     // vbe = 7,
     framebuffer = 8,
     // elf_sections = 9,
@@ -76,7 +76,13 @@ pub const ElfsectionTag = extern struct {
 pub const MmapEntry = extern struct {
     base_addr: u64,
     length: u64,
-    type: u32,
+    type: enum(u32) {
+        available = 1,
+        reserved = 2,
+        acpi_info = 3,
+        hibernation_reserved = 4,
+        defective_ram = 5,
+    },
     reserved: u32,
 };
 
@@ -85,8 +91,11 @@ pub const MmapTag = extern struct {
     entry_size: u32,
     entry_version: u32,
 
-    pub fn entries(self: *MmapTag) [*]MmapEntry {
-        return @ptrFromInt(@intFromPtr(self) + @sizeOf(Tag));
+    pub fn entries(self: *MmapTag) []MmapEntry {
+        const raw: [*]MmapEntry = @ptrFromInt(@intFromPtr(self) + @sizeOf(MmapTag));
+        const count = (self.base.size - @sizeOf(MmapTag)) / self.entry_size;
+
+        return raw[0..count];
     }
 };
 
@@ -197,6 +206,8 @@ pub fn parse(info: *Info, handlers: anytype) void {
             .end => break,
             .cmdline => if (@hasDecl(handlers, "onCmdline"))
                 handlers.onCmdline(@ptrFromInt(addr)),
+            .mmap => if (@hasDecl(handlers, "onMmap"))
+                handlers.onMmap(@ptrFromInt(addr)),
             .framebuffer => if (@hasDecl(handlers, "onFramebuffer"))
                 handlers.onFramebuffer(@ptrFromInt(addr)),
             .acpi_rsdp_v1 => if (@hasDecl(handlers, "onACPIv1"))
