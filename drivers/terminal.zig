@@ -164,9 +164,9 @@ var terminals: [12]Terminal = undefined;
 var active_idx: usize = 0;
 
 fn renderStatusBar() void {
-    const active_color = vga.EntryColor.init(.black, .light_cyan);
-    const inactive_color = vga.EntryColor.init(.light_grey, .dark_grey);
-    const fill_color = vga.EntryColor.init(.dark_grey, .dark_grey);
+    const active_color = vga.EntryColor.init(.black, .cyan);
+    const inactive_color = vga.EntryColor.init(.white, .black);
+    const fill_color = vga.EntryColor.init(.cyan, .black);
 
     vga.setPosition(0, 0);
     for (0..terminals.len) |i| {
