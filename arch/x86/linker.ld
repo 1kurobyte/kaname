@@ -4,6 +4,8 @@ SECTIONS
 {
 	. = 1M;
 
+	_kernel_start = .;
+
 	.text ALIGN(4K) : ALIGN(4K)
 	{
 		KEEP(*(.multiboot2))

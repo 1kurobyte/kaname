@@ -22,12 +22,21 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const mm = b.createModule(.{
+        .root_source_file = b.path("kernel/mm/pmm.zig"),
+        .target = target,
+        .optimize = optimize,
+        .omit_frame_pointer = false,
+    });
+
     const arch = b.createModule(.{
         .root_source_file = b.path("arch/arch.zig"),
         .target = target,
         .optimize = optimize,
+        .omit_frame_pointer = false,
         .imports = &.{
             .{ .name = "abi", .module = abi },
+            .{ .name = "mm", .module = mm },
         },
     });
 
@@ -35,6 +44,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("drivers/drivers.zig"),
         .target = target,
         .optimize = optimize,
+        .omit_frame_pointer = false,
         .imports = &.{
             .{ .name = "arch", .module = arch },
             .{ .name = "abi", .module = abi },
@@ -45,10 +55,12 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("kernel/kernel.zig"),
         .target = target,
         .optimize = optimize,
+        .omit_frame_pointer = false,
         .imports = &.{
             .{ .name = "arch", .module = arch },
             .{ .name = "abi", .module = abi },
             .{ .name = "drivers", .module = drivers },
+            .{ .name = "mm", .module = mm },
         },
     });
 
