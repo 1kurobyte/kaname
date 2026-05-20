@@ -95,7 +95,7 @@ pub fn build(b: *std.Build) void {
 
     const cp_kernel_cmd = b.addSystemCommand(&.{"cp"});
     cp_kernel_cmd.addArtifactArg(kernel);
-    cp_kernel_cmd.addArg("iso/boot/kaname.kernel");
+    cp_kernel_cmd.addArg("iso-grub/boot/kaname.kernel");
     cp_kernel_cmd.step.dependOn(&mkdir_cmd.step);
 
     const cp_grub_cmd = b.addSystemCommand(&.{ "cp", "meta/grub.cfg", "iso-grub/boot/grub/grub.cfg" });
