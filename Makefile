@@ -62,6 +62,11 @@ fmt:
 	$(ZIG) fmt kernel arch abi drivers
 
 
+.PHONY: fmt-check
+fmt-check:
+	$(ZIG) fmt --check kernel arch abi drivers
+
+
 .PHONY: clean
 clean:
 	rm -rf zig-out .zig-cache iso-grub kaname-grub.iso iso-limine kaname-limine.iso

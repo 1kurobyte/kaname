@@ -5,6 +5,30 @@ on:
   pull_request:
 
 jobs:
+  test:
+    name: Format & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # needed for `git describe` in build.zig
+
+      - name: Install Zig
+        run: |
+          curl -LO https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz
+          tar -xf zig-x86_64-linux-0.16.0.tar.xz
+          echo "$PWD/zig-x86_64-linux-0.16.0" >> $GITHUB_PATH
+
+      - name: Check Zig version
+        run: zig version
+
+      - name: Check formatting
+        run: make fmt-check
+
+      - name: Run unit tests
+        run: make test
+
   build:
     name: Build & Test ISO (${{ matrix.bootloader }})
     runs-on: ubuntu-latest
@@ -53,33 +77,44 @@ jobs:
       - name: Build kernel
         run: make build
 
-      - name: Build ISO (GRUB)
-        if: matrix.bootloader == 'grub'
-        run: make iso-grub
+      - name: Build ISO
+        run: make iso-${{ matrix.bootloader }}
 
-      - name: Build ISO (Limine)
-        if: matrix.bootloader == 'limine'
-        run: make iso-limine
-
-      - name: Test ISO boots in QEMU (GRUB)
-        if: matrix.bootloader == 'grub'
+      - name: Boot in QEMU and verify the kernel reaches its main loop
         run: |
-          timeout 10s qemu-system-i386 \
-            -cdrom kaname-grub.iso \
-            -serial stdio \
-            -display none \
-            -no-reboot \
-            -no-shutdown \
-          || [ $? -eq 124 ]  # timeout (124) is acceptable — kernel is running
+          ISO="kaname-${{ matrix.bootloader }}.iso"
+          MARKER='[boot] Init complete'
 
-      - name: Test ISO boots in QEMU (Limine)
-        if: matrix.bootloader == 'limine'
-        run: |
-          timeout 10s qemu-system-i386 \
-            -cdrom kaname-limine.iso \
-            -serial stdio \
+          qemu-system-i386 \
+            -cdrom "$ISO" \
+            -serial file:serial.log \
             -display none \
-            -no-reboot \
-            -no-shutdown \
-          || [ $? -eq 124 ]
+            -no-reboot &
+          QEMU_PID=$!
 
+          # The kernel halts forever once booted, so we poll its serial log
+          # and stop QEMU as soon as the boot marker appears (or QEMU dies).
+          for _ in $(seq 1 40); do
+            grep -qF "$MARKER" serial.log 2>/dev/null && break
+            kill -0 "$QEMU_PID" 2>/dev/null || break
+            sleep 0.5
+          done
+
+          kill "$QEMU_PID" 2>/dev/null || true
+          wait "$QEMU_PID" 2>/dev/null || true
+
+          echo "::group::Serial output"
+          cat serial.log 2>/dev/null || echo "(no serial output captured)"
+          echo "::endgroup::"
+
+          if grep -qF 'PANIC:' serial.log 2>/dev/null; then
+            echo "::error::Kernel panicked during boot"
+            exit 1
+          fi
+
+          if ! grep -qF "$MARKER" serial.log 2>/dev/null; then
+            echo "::error::Boot marker missing - the kernel did not reach its main loop"
+            exit 1
+          fi
+
+          echo "Kernel booted cleanly and reached its main loop."
