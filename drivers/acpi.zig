@@ -166,6 +166,7 @@ fn sigToInt(sig: [4]u8) u32 {
 }
 
 pub fn init(sdt_addr: u32) void {
+    @setRuntimeSafety(false);
     const sdt = @as(*SdtHeader, @ptrFromInt(sdt_addr));
     const entriesCount = (sdt.length - @sizeOf(SdtHeader)) / @sizeOf(usize);
     const entries = @as([*]const usize, @ptrFromInt(sdt_addr + @sizeOf(SdtHeader)))[0..entriesCount];
