@@ -64,15 +64,6 @@ pub const ModuleTag = extern struct {
     }
 };
 
-pub const ElfsectionTag = extern struct {
-    base: Tag,
-    num: u16,
-    entsize: u16,
-    shndx: u16,
-    reserved: u16,
-    // headers: undefined,
-};
-
 pub const MmapEntry = extern struct {
     base_addr: u64,
     length: u64,
@@ -93,8 +84,15 @@ pub const MmapTag = extern struct {
 
     pub fn entries(self: *MmapTag) []MmapEntry {
         const raw: [*]MmapEntry = @ptrFromInt(@intFromPtr(self) + @sizeOf(MmapTag));
-        const count = (self.base.size - @sizeOf(MmapTag)) / self.entry_size;
 
+        // Reject degenerate headers before the size arithmetic runs: a size
+        // below the tag header underflows the subtraction, a zero entry_size
+        // divides by zero, and an entry_size below one MmapEntry would let the
+        // returned slice overrun the tag body.
+        if (self.base.size < @sizeOf(MmapTag)) return raw[0..0];
+        if (self.entry_size < @sizeOf(MmapEntry)) return raw[0..0];
+
+        const count = (self.base.size - @sizeOf(MmapTag)) / self.entry_size;
         return raw[0..count];
     }
 };
@@ -196,11 +194,18 @@ pub const AcpiRsdpV2Tag = extern struct {
 };
 
 pub fn parse(info: *Info, handlers: anytype) void {
-    var addr = @intFromPtr(info) + 8;
     const end = @intFromPtr(info) + info.total_size;
+    var addr = @intFromPtr(info) + 8;
 
-    while (addr < end) {
+    // Stop once there is no room left for another tag header.
+    while (addr + @sizeOf(Tag) <= end) {
         const tag: *Tag = @ptrFromInt(addr);
+
+        // A corrupt size desyncs the walk: below the header it never advances
+        // `addr` (a zero size loops forever), and past `end` it would let a
+        // handler read beyond the multiboot2 structure. `end - addr` cannot
+        // underflow here - the loop condition guarantees `addr + 8 <= end`.
+        if (tag.size < @sizeOf(Tag) or tag.size > end - addr) break;
 
         switch (tag.type) {
             .end => break,
