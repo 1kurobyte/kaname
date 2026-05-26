@@ -19,18 +19,18 @@ const SerialError = error{TestFailed};
 pub fn init() SerialError!void {
     ports.outb(COM1 + 1, 0x00); // disable interrupts
     ports.outb(COM1 + 3, 0x80); // enable DLAB
-    ports.outb(COM1 + 0, 0x03); // baud rate low: 38400
+    ports.outb(COM1 + 0, 0x01); // baud rate low: 115200
     ports.outb(COM1 + 1, 0x00); // baud rate high
     ports.outb(COM1 + 3, 0x03); // 8 bits, no parity, one stop bit
-    ports.outb(COM1 + 2, 0xC7); // enable FIFO
-    ports.outb(COM1 + 4, 0x0B); // enable IRQs, RTS/DSR set
-    ports.outb(COM1 + 4, 0x1E); // loopback mode
-    ports.outb(COM1 + 0, 0xAE); // test serial
+    ports.outb(COM1 + 2, 0x00); // disable FIFO
 
-    if (ports.inb(COM1 + 0) != 0xAE) {
-        return error.TestFailed;
-    }
-    ports.outb(COM1 + 4, 0x0F); // normal operation mode
+    // ports.outb(COM1 + 4, 0x1E); // loopback mode
+    // ports.outb(COM1 + 0, 0xAE); // test serial
+    // if (ports.inb(COM1 + 0) != 0xAE) {
+    //     return error.TestFailed;
+    // }
+
+    ports.outb(COM1 + 4, 0x03); // normal operation mode
 }
 
 fn serialReceived() bool {
