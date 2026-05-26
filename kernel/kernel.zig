@@ -66,7 +66,7 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
                 .ega_text => {
                     drivers.terminal.init();
                     drivers.terminal.print(
-                        \\KFS {s}
+                        \\Kaname {s}
                         \\Hello, {d}!
                         \\
                     , .{ config.version, 42 });

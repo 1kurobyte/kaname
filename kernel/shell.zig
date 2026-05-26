@@ -39,7 +39,7 @@ fn cmdHelp(_: []const u8) void {
 }
 
 fn cmdUname(_: []const u8) void {
-    terminal.print("KFS {s}\n", .{@import("config").version});
+    terminal.print("Kaname {s}\n", .{@import("config").version});
 }
 
 fn cmdShutdown(_: []const u8) void {
