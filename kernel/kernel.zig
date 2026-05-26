@@ -84,6 +84,10 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
                 return;
             }
             drivers.acpi.init(tag.rsdp.rsdt_address);
+            arch.idt.registerRawHandler(32 + @as(u8, @truncate(drivers.acpi.fadt.sci_interrupt)), drivers.acpi.handleSci);
+            arch.pic.unmaskIrqRaw(@truncate(drivers.acpi.fadt.sci_interrupt));
+            drivers.acpi.enable();
+            drivers.acpi.enablePowerButtonEvent();
 
             drivers.serial.print(
                 \\[acpi] FADT at 0x{X}
@@ -104,6 +108,11 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
 
             // todo: use xsdt instead
             drivers.acpi.init(tag.rsdp.rsdt_address);
+            arch.idt.registerRawHandler(32 + @as(u8, @truncate(drivers.acpi.fadt.sci_interrupt)), drivers.acpi.handleSci);
+            arch.pic.unmaskIrqRaw(@truncate(drivers.acpi.fadt.sci_interrupt));
+            drivers.acpi.enable();
+            drivers.acpi.enablePowerButtonEvent();
+
             drivers.serial.print(
                 \\[acpi] FADT at 0x{X}
                 \\[acpi] Preferred PM profile: {}

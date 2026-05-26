@@ -161,6 +161,11 @@ pub fn registerHandler(vector: InterruptVector, handler: InterruptHandler) void 
     handlers[@intFromEnum(vector)] = handler;
 }
 
+/// Bypass the InterruptVector enum to allow runtime-defined IRQs
+pub fn registerRawHandler(vector: u8, handler: InterruptHandler) void {
+    handlers[vector] = handler;
+}
+
 pub fn setGateUser(vector: InterruptVector) void {
     const addr = @intFromPtr(isr_stubs[@intFromEnum(vector)]);
     idt_entries[@intFromEnum(vector)] = IdtEntry.make(addr, gdt.KERNEL_CODE_SEG, 0, .interrupt_32);

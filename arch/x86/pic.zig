@@ -98,6 +98,18 @@ pub fn unmaskIrq(irq: Irq) void {
     }
 }
 
+pub fn unmaskIrqRaw(irq: u8) void {
+    if (irq < 8) {
+        const val = ports.inb(PIC1_DATA);
+        ports.outb(PIC1_DATA, val & ~(@as(u8, 1) << @truncate(irq)));
+    } else {
+        const master_val = ports.inb(PIC1_DATA);
+        ports.outb(PIC1_DATA, master_val & ~(@as(u8, 1) << @intFromEnum(Irq.cascade)));
+        const val = ports.inb(PIC2_DATA);
+        ports.outb(PIC2_DATA, val & ~(@as(u8, 1) << @truncate(irq - 8)));
+    }
+}
+
 pub fn maskAll() void {
     ports.outb(PIC1_DATA, 0xFF);
     ports.outb(PIC2_DATA, 0xFF);

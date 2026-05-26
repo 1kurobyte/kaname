@@ -1,5 +1,10 @@
 const std = @import("std");
 const abi = @import("abi");
+const arch = @import("arch");
+const ports = arch.ports;
+const idt = arch.idt;
+const cpu = arch.cpu;
+const serial = @import("serial.zig");
 
 pub const Rsdp = abi.acpi.Rsdp;
 pub const Xsdp = abi.acpi.Xsdp;
@@ -161,7 +166,6 @@ fn sigToInt(sig: [4]u8) u32 {
 }
 
 pub fn init(sdt_addr: u32) void {
-    // @setRuntimeSafety(false); // prevent alignment panic
     const sdt = @as(*SdtHeader, @ptrFromInt(sdt_addr));
     const entriesCount = (sdt.length - @sizeOf(SdtHeader)) / @sizeOf(usize);
     const entries = @as([*]const usize, @ptrFromInt(sdt_addr + @sizeOf(SdtHeader)))[0..entriesCount];
@@ -191,11 +195,18 @@ fn getSlpTypa(s5: [*]const u8) u8 {
 
 pub var fadt: *const Fadt = undefined;
 
+pub fn enable() void {
+    if ((ports.inw(@truncate(fadt.pm1a_ctrl_block)) & 1) == 0) {
+        ports.outb(@truncate(fadt.smi_cmd), fadt.acpi_enable);
+
+        while ((ports.inw(@truncate(fadt.pm1a_ctrl_block)) & 1) == 0) {
+            cpu.pause();
+        }
+    }
+}
+
 pub fn shutdown() void {
-    @setRuntimeSafety(false);
-    const serial = @import("serial.zig");
     const terminal = @import("terminal.zig");
-    const ports = @import("arch").ports;
     const dsdt: *const SdtHeader = @ptrFromInt(fadt.dsdt);
     const dsdt_bytes: [*]const u8 = @ptrCast(dsdt);
     const s5 = findS5(dsdt_bytes, dsdt.length) orelse {
@@ -204,31 +215,46 @@ pub fn shutdown() void {
     };
     const slp_typa = getSlpTypa(s5);
 
-    serial.print("ACPI shutdown\n", .{});
+    serial.print("[acpi] Shutdown\n", .{});
 
     const SLP_EN: u16 = 1 << 13;
     const SLP_TYP_SHIFT: u16 = 10;
     const val: u16 = (@as(u16, slp_typa) << @as(u4, @truncate(SLP_TYP_SHIFT))) | SLP_EN;
 
-    if (ports.inb(@truncate(fadt.pm1a_ctrl_block)) & 1 == 0) {
-        ports.outb(@truncate(fadt.smi_cmd), fadt.acpi_enable);
-        while (ports.inb(@truncate(fadt.pm1a_ctrl_block)) & 1 == 0) {}
-    }
-
-    serial.print("Writing 0x{X} to 0x{X}\n", .{ val, fadt.pm1a_ctrl_block });
-    terminal.print("Writing 0x{X} to 0x{X}\n", .{ val, fadt.pm1a_ctrl_block });
+    serial.print("[acpi] Writing 0x{X} to 0x{X}\n", .{ val, fadt.pm1a_ctrl_block });
+    terminal.print("[acpi] Writing 0x{X} to 0x{X}\n", .{ val, fadt.pm1a_ctrl_block });
 
     ports.outw(@truncate(fadt.pm1a_ctrl_block), val);
     if (fadt.pm1b_ctrl_block != 0) {
         ports.outw(@truncate(fadt.pm1b_ctrl_block), val);
     }
 
-    asm volatile ("hlt");
-    serial.print("Shutdown failed. Halting.\n", .{});
-    terminal.print("Shutdown failed. Halting.\n", .{});
+    cpu.idle();
+    serial.print("[acpi] Shutdown failed. System halted.\n", .{});
+    terminal.print("[acpi] Shutdown failed. System halted.\n", .{});
 
-    // Shutdown didn't occur, halt indefinitely
-    while (true) {
-        asm volatile ("cli; hlt");
+    cpu.halt();
+}
+
+const PM1_PWRBTN: u16 = 1 << 8;
+
+pub fn enablePowerButtonEvent() void {
+    const pm1_en_port: u16 = @truncate(fadt.pm1a_ev_block + 2);
+
+    var en = ports.inw(pm1_en_port);
+    en |= PM1_PWRBTN;
+
+    ports.outw(pm1_en_port, en);
+}
+
+pub fn handleSci(_: *idt.InterruptFrame) void {
+    const pm1_sts_port: u16 = @truncate(fadt.pm1a_ev_block);
+
+    const sts = ports.inw(pm1_sts_port);
+
+    if ((sts & PM1_PWRBTN) != 0) {
+        ports.outw(pm1_sts_port, PM1_PWRBTN);
+        serial.print("[acpi] Power button pressed\n", .{});
+        shutdown();
     }
 }
