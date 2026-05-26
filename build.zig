@@ -6,6 +6,7 @@ pub fn build(b: *std.Build) void {
         .whitelist = &.{
             .{ .cpu_arch = .x86, .os_tag = .freestanding, .abi = .none },
             .{ .cpu_arch = .x86_64, .os_tag = .freestanding, .abi = .none },
+            .{ .cpu_arch = .riscv32, .os_tag = .freestanding, .abi = .none },
         },
         .default_target = .{
             .cpu_arch = .x86,
@@ -14,7 +15,7 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const cpu_arch: std.Target.Cpu.Arch = .x86;
+    const cpu_arch = target.result.cpu.arch;
 
     const abi = b.createModule(.{
         .root_source_file = b.path("abi/abi.zig"),
@@ -83,6 +84,8 @@ pub fn build(b: *std.Build) void {
 
     const linker_script = switch (cpu_arch) {
         .x86 => b.path("arch/x86/linker.ld"),
+        .x86_64 => b.path("arch/x86/linker.ld"),
+        .riscv32 => b.path("arch/riscv32/linker.ld"),
         else => @panic("unsupported architecture"),
     };
     kernel.setLinkerScript(linker_script);
@@ -121,7 +124,7 @@ pub fn build(b: *std.Build) void {
 
     const run_step = b.step("run-grub", "Run kernel in QEMU using GRUB ISO");
 
-    const qemu_version = "qemu-system-" ++ switch (cpu_arch) {
+    const qemu_version = b.fmt("qemu-system-{s}", .{switch (cpu_arch) {
         .aarch64 => "aarch64",
         .arm => "arm",
         .avr => "avr",
@@ -143,7 +146,7 @@ pub fn build(b: *std.Build) void {
         .x86_64 => "x86_64",
         .xtensa => "xtensa",
         else => @panic("unsupported CPU architecture"),
-    };
+    }});
 
     const qemu = b.addSystemCommand(&.{
         qemu_version,

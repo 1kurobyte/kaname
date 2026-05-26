@@ -2,6 +2,7 @@ const builtin = @import("builtin");
 
 const impl = switch (builtin.target.cpu.arch) {
     .x86 => @import("x86/x86.zig"),
+    .riscv32 => @import("riscv32/riscv32.zig"),
     else => @compileError("unsupported architecture"),
 };
 
