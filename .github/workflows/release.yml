@@ -78,4 +78,4 @@ jobs:
       - name: Attach ISO to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: kaname-${{ matrix.arch }}-${{ matrix.bootloader }}.iso
+          files: release-isos/kaname-*.iso
