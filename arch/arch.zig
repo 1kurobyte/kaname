@@ -6,11 +6,15 @@ const impl = switch (builtin.target.cpu.arch) {
 };
 
 pub const boot = impl.boot;
+pub const cpu = impl.cpu;
+pub const platform = impl.platform;
 pub const idt = impl.idt;
 pub const gdt = impl.gdt;
 pub const multiboot2 = impl.multiboot2;
 pub const ports = impl.ports;
 pub const pic = impl.pic;
 pub const lapic = impl.lapic;
-pub const cpuid = impl.cpuid;
 pub const msr = impl.msr;
+
+pub const has_cpuid = @hasDecl(impl, "cpuid");
+pub const cpuid = if (has_cpuid) impl.cpuid else struct {};

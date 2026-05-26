@@ -1,9 +1,9 @@
 const std = @import("std");
+const arch = @import("arch");
 const terminal = @import("drivers").terminal;
 const acpi = @import("drivers").acpi;
-const cpuid = @import("arch").cpuid;
 const keyboard = @import("drivers").keyboard;
-const STACK_SIZE = @import("arch").boot.STACK_SIZE;
+const STACK_SIZE = arch.boot.STACK_SIZE;
 
 const Command = struct {
     name: []const u8,
@@ -57,31 +57,36 @@ fn printFlags(features: anytype) void {
 }
 
 fn cmdCpuinfo(_: []const u8) void {
-    terminal.print(
-        \\processor     : 0
-        \\vendor_id     : {s}
-        \\cpu family    : {}
-        \\model         : {}
-        \\model name    : {s}
-        \\stepping      : {}
-        \\flags         : 
-    , .{
-        cpuid.vendorString(),
-        cpuid.effectiveFamily(cpuid.familyInfo()),
-        cpuid.effectiveModel(cpuid.familyInfo()),
-        std.mem.trimEnd(u8, &cpuid.brandString(), &.{0}),
-        cpuid.familyInfo().stepping,
-    });
-    printFlags(cpuid.features());
-    printFlags(cpuid.extFeatures());
-    terminal.print(
-        \\
-        \\address sizes : {} bits physical, {} bits virtual
-        \\
-    , .{
-        cpuid.addressSizes().eax.physical_address_bits,
-        cpuid.addressSizes().eax.linear_address_bits,
-    });
+    if (comptime arch.has_cpuid) {
+        const cpuid = arch.cpuid;
+        terminal.print(
+            \\processor     : 0
+            \\vendor_id     : {s}
+            \\cpu family    : {}
+            \\model         : {}
+            \\model name    : {s}
+            \\stepping      : {}
+            \\flags         :
+        , .{
+            cpuid.vendorString(),
+            cpuid.effectiveFamily(cpuid.familyInfo()),
+            cpuid.effectiveModel(cpuid.familyInfo()),
+            std.mem.trimEnd(u8, &cpuid.brandString(), &.{0}),
+            cpuid.familyInfo().stepping,
+        });
+        printFlags(cpuid.features());
+        printFlags(cpuid.extFeatures());
+        terminal.print(
+            \\
+            \\address sizes : {} bits physical, {} bits virtual
+            \\
+        , .{
+            cpuid.addressSizes().eax.physical_address_bits,
+            cpuid.addressSizes().eax.linear_address_bits,
+        });
+    } else {
+        terminal.print("cpuinfo: unsupported on this architecture\n", .{});
+    }
 }
 
 fn cmdClear(_: []const u8) void {
@@ -89,13 +94,11 @@ fn cmdClear(_: []const u8) void {
 }
 
 fn cmdStack(_: []const u8) void {
-    const ebp = asm volatile ("mov %%ebp, %[ret]"
-        : [ret] "=r" (-> usize),
-    );
+    const fp = @frameAddress();
 
     const header_str = "=== Stack Trace ";
     terminal.print(header_str ++ (@as([80 - header_str.len]u8, @splat('='))), .{});
-    @import("debug/stack.zig").printStack(ebp);
+    @import("debug/stack.zig").printStack(fp);
     terminal.print(&@as([80]u8, @splat('=')), .{});
 }
 
@@ -109,7 +112,7 @@ fn cmdPanic(_: []const u8) void {
 
 fn cmdHalt(_: []const u8) void {
     terminal.write("System halted.\n");
-    asm volatile ("cli; hlt");
+    arch.cpu.halt();
 }
 
 fn dispatch(input: []const u8) void {
@@ -158,6 +161,6 @@ pub fn init() void {
                 .scroll_down => terminal.scrollDown(),
             }
         }
-        asm volatile ("hlt");
+        arch.cpu.idle();
     }
 }

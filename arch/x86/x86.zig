@@ -1,4 +1,6 @@
 pub const boot = @import("boot.zig");
+pub const cpu = @import("cpu.zig");
+pub const platform = @import("platform.zig");
 pub const multiboot2 = @import("multiboot2.zig");
 pub const ports = @import("ports.zig");
 pub const pic = @import("pic.zig");

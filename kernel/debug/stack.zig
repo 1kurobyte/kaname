@@ -11,9 +11,7 @@ const StackFrame = extern struct {
 pub fn printStack(ebp: ?usize) void {
     symbols.ensureSorted();
 
-    const actual_ebp = asm volatile ("mov %%ebp, %[ret]"
-        : [ret] "=r" (-> usize),
-    );
+    const actual_ebp = @frameAddress();
 
     const stack_lo = @intFromPtr(&boot.stack);
     const stack_hi = stack_lo + boot.STACK_SIZE;

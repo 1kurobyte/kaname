@@ -20,29 +20,30 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
         drivers.serial.print("bad magic: {x}\n", .{magic});
     }
 
-    cpu_vendor = arch.cpuid.vendorString();
-    cpu_brand = arch.cpuid.brandString();
-    const info = arch.cpuid.familyInfo();
+    drivers.serial.print("[serial] Output initialized\n", .{});
 
-    drivers.serial.print("Serial output initialized\n", .{});
-    drivers.serial.print("CPU vendor: {s}\n", .{cpu_vendor});
-    drivers.serial.print("CPU brand:  {s}\n", .{std.mem.trimEnd(u8, &cpu_brand, &.{0})});
-    drivers.serial.print("Family: {}  Model: {}  Stepping: {}\n", .{
-        arch.cpuid.effectiveFamily(info),
-        arch.cpuid.effectiveModel(info),
-        info.stepping,
-    });
+    if (comptime arch.has_cpuid) {
+        cpu_vendor = arch.cpuid.vendorString();
+        cpu_brand = arch.cpuid.brandString();
+        const info = arch.cpuid.familyInfo();
 
-    arch.gdt.init();
-    arch.idt.init();
-    arch.pic.init();
+        drivers.serial.print("[cpuid] Vendor: {s}\n", .{cpu_vendor});
+        drivers.serial.print("[cpuid] Brand:  {s}\n", .{std.mem.trimEnd(u8, &cpu_brand, &.{0})});
+        drivers.serial.print("[cpuid] Family: {} Model: {} Stepping: {}\n", .{
+            arch.cpuid.effectiveFamily(info),
+            arch.cpuid.effectiveModel(info),
+            info.stepping,
+        });
+    }
+
+    arch.platform.init();
     drivers.keyboard.init();
-    arch.idt.enableInterrupts();
+    arch.cpu.enableInterrupts();
 
     // TODO only init apic when CPUID indicates its availability
     // arch.lapic.init() catch {
     //     arch.pic.init();
-    //     drivers.serial.print("LAPIC init failed\n", .{});
+    //     drivers.serial.print("[lapic] Init failed\n", .{});
     // };
 
     arch.multiboot2.parse(mb_info, struct {
@@ -56,9 +57,9 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
         }
         pub fn onFramebuffer(tag: *arch.multiboot2.FramebufferTag) void {
             const ptr: [*]u32 = @ptrFromInt(@as(usize, @truncate(tag.addr)));
-            drivers.serial.print("[Framebuffer] Type: {}\n", .{tag.type});
-            drivers.serial.print("[Framebuffer] Resolution: {}x{}\n", .{ tag.width, tag.height });
-            drivers.serial.print("[Framebuffer] Address: 0x{X}\n", .{tag.addr});
+            drivers.serial.print("[video] Type: {}\n", .{tag.type});
+            drivers.serial.print("[video] Resolution: {}x{}\n", .{ tag.width, tag.height });
+            drivers.serial.print("[video] Address: 0x{X}\n", .{tag.addr});
 
             switch (tag.type) {
                 .direct => @"42".draw42(ptr, tag.width, tag.height),
@@ -85,8 +86,8 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
             drivers.acpi.init(tag.rsdp.rsdt_address);
 
             drivers.serial.print(
-                \\FADT at 0x{X}
-                \\Preferred PM profile: {}
+                \\[acpi] FADT at 0x{X}
+                \\[acpi] Preferred PM profile: {}
                 \\
             , .{
                 @intFromPtr(drivers.acpi.fadt),
@@ -104,8 +105,8 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
             // todo: use xsdt instead
             drivers.acpi.init(tag.rsdp.rsdt_address);
             drivers.serial.print(
-                \\FADT at 0x{X}
-                \\Preferred PM profile: {}
+                \\[acpi] FADT at 0x{X}
+                \\[acpi] Preferred PM profile: {}
                 \\
             , .{
                 @intFromPtr(drivers.acpi.fadt),
@@ -115,12 +116,9 @@ pub export fn main(magic: u32, mb_info: *arch.multiboot2.Info) void {
     });
 
     drivers.terminal.initPrompts();
-    shell.init();
+    drivers.serial.print("[boot] Init complete\n", .{});
 
-    // main loop
-    while (true) {
-        asm volatile ("hlt");
-    }
+    shell.init();
 
     unreachable;
 }
@@ -131,12 +129,12 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     if (panicking) {
         @branchHint(.unlikely);
         drivers.serial.print("DOUBLE PANIC\n", .{});
-        while (true) asm volatile ("cli; hlt");
+        arch.cpu.halt();
     }
     panicking = true;
     drivers.terminal.setColor(.init(.light_red, .black));
     drivers.serial.print("PANIC: {s}\n", .{msg});
     drivers.terminal.print("PANIC: {s}\n", .{msg});
     debug.printStack(null);
-    while (true) asm volatile ("cli; hlt");
+    arch.cpu.halt();
 }
