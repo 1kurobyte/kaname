@@ -66,7 +66,7 @@ fn cmdCpuinfo(_: []const u8) void {
             \\model         : {}
             \\model name    : {s}
             \\stepping      : {}
-            \\flags         :
+            \\flags         : 
         , .{
             cpuid.vendorString(),
             cpuid.effectiveFamily(cpuid.familyInfo()),
