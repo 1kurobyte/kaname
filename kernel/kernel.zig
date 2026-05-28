@@ -10,6 +10,11 @@ comptime {
     _ = arch.boot;
 }
 
+comptime {
+    if (config.kernel_mode == .rtos)
+        @compileError("RTOS not supported yet");
+}
+
 var cpu_vendor: [12]u8 = undefined;
 var cpu_brand: [48]u8 = undefined;
 

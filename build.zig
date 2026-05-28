@@ -77,6 +77,13 @@ pub fn build(b: *std.Build) void {
     options.addOption([]const u8, "version", version);
     options.addOption(bool, "full", b.option(bool, "full", "Enable all optional subsystems") orelse false);
 
+    const KernelMode = enum {
+        gpos,
+        rtos,
+    };
+    const is_rtos = b.option(bool, "rtos", "Use RTOS instead of GPOS subsystems") orelse false;
+    options.addOption(KernelMode, "kernel_mode", if (is_rtos) .rtos else .gpos);
+
     const config = options.createModule();
 
     kernel.root_module.addImport("config", config);
