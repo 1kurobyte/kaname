@@ -161,6 +161,27 @@ pub const Fadt = extern struct {
     }
 };
 
+const HpetBlockId = packed struct(u8) {
+    comparator_count: u5,
+    counter_size: u1,
+    reserved: u1,
+    legacy_replacement: u1,
+};
+
+const Hpet = extern struct {
+    header: SdtHeader,
+    hardware_rev_id: u8,
+    block_id: HpetBlockId,
+    pci_vendor_id: u16,
+    address: GenericAddressStructure,
+    hpet_number: u8,
+    minimum_tick: u16,
+    page_protection: u8,
+};
+
+pub var fadt: *const Fadt = undefined;
+pub var hpet: *const Hpet = undefined;
+
 fn sigToInt(sig: [4]u8) u32 {
     return @as(u32, @bitCast(sig));
 }
@@ -175,6 +196,7 @@ pub fn init(sdt_addr: u32) void {
         const table = @as(*SdtHeader, @ptrFromInt(addr));
         switch (sigToInt(table.signature)) {
             sigToInt("FACP".*) => fadt = @ptrFromInt(addr),
+            sigToInt("HPET".*) => hpet = @ptrFromInt(addr),
             else => {},
         }
     }
@@ -193,8 +215,6 @@ fn findS5(dsdt: [*]const u8, len: usize) ?[*]const u8 {
 fn getSlpTypa(s5: [*]const u8) u8 {
     return s5[8];
 }
-
-pub var fadt: *const Fadt = undefined;
 
 pub fn enable() void {
     if ((ports.inw(@truncate(fadt.pm1a_ctrl_block)) & 1) == 0) {
