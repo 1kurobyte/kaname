@@ -203,22 +203,31 @@ const Terminal = struct {
 var terminals: [12]Terminal = undefined;
 var active_idx: usize = 0;
 
-fn renderStatusBar() void {
+pub fn renderStatusBar() void {
+    const ticks = @import("arch").pit.getTicks();
+    const seconds = ticks / 100;
+    const minutes = seconds / 60;
+    const hours = minutes / 60;
+
     const active_color = vga.EntryColor.init(.black, .cyan);
     const inactive_color = vga.EntryColor.init(.white, .black);
     const fill_color = vga.EntryColor.init(.cyan, .black);
 
-    vga.setPosition(0, 0);
     for (0..terminals.len) |i| {
-        vga.setColor(if (i == active_idx) active_color else inactive_color);
         const n = i + 1;
         const label = [5]u8{ ' ', 'F', @truncate(n / 10 + '0'), @truncate(n % 10 + '0'), ' ' };
-        vga.write(&label);
+        for (label, 0..) |c, j| {
+            vga.putEntryAt(vga.vgaEntry(c, if (i == active_idx) active_color else inactive_color), i * 5 + j, 0);
+        }
     }
     const fill_start = terminals.len * 5;
 
-    vga.setColor(fill_color);
-    for (fill_start..COLS) |_| vga.putchar(' ');
+    for (fill_start..COLS - 9) |i| vga.putEntryAt(vga.vgaEntry(' ', fill_color), i, 0);
+    var buffer: [9]u8 = @splat(0);
+    _ = std.fmt.bufPrint(&buffer, "{d:>2}:{d:0>2}:{d:0>2}", .{ hours, minutes % 60, seconds % 60 }) catch {};
+    for (buffer, COLS - 9..) |c, i| {
+        vga.putEntryAt(vga.vgaEntry(c, inactive_color), i, 0);
+    }
 }
 
 pub fn switchActive(idx: usize) void {

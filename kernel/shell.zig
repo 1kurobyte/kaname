@@ -160,6 +160,8 @@ pub fn init() void {
                 .scroll_up => terminal.scrollUp(),
                 .scroll_down => terminal.scrollDown(),
             }
+        } else { // CPU resumed, potentially timer IRQ
+            terminal.renderStatusBar();
         }
         arch.cpu.idle();
     }
