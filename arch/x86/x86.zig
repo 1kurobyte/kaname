@@ -9,3 +9,4 @@ pub const cpuid = @import("cpuid.zig");
 pub const msr = @import("msr.zig");
 pub const gdt = @import("gdt.zig");
 pub const idt = @import("idt.zig");
+pub const pit = @import("pit.zig");

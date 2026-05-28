@@ -16,6 +16,7 @@ pub const ports = impl.ports;
 pub const pic = impl.pic;
 pub const lapic = impl.lapic;
 pub const msr = impl.msr;
+pub const pit = impl.pit;
 
 pub const has_cpuid = @hasDecl(impl, "cpuid");
 pub const cpuid = if (has_cpuid) impl.cpuid else struct {};

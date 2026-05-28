@@ -69,7 +69,11 @@ pub fn init() void {
 }
 
 pub fn sendEoi(irq: Irq) void {
-    if (@intFromEnum(irq) >= 8) {
+    sendEoiRaw(@intFromEnum(irq));
+}
+
+pub fn sendEoiRaw(vector: u8) void {
+    if (vector >= PIC2_OFFSET) {
         ports.outb(PIC2_CMD, PIC_EOI);
     }
     ports.outb(PIC1_CMD, PIC_EOI);
