@@ -1,6 +1,7 @@
 const ports = @import("ports.zig");
 const idt = @import("idt.zig");
 const pic = @import("pic.zig");
+const rtc = @import("rtc.zig");
 
 // https://wiki.osdev.org/Programmable_Interval_Timer
 
@@ -14,7 +15,7 @@ var tick_count: u64 = 0;
 
 fn timerHandler(frame: *idt.InterruptFrame) void {
     _ = frame;
-    tick_count += 1;
+    tick_count +%= 1;
     pic.sendEoiRaw(0x20);
 }
 
@@ -29,4 +30,5 @@ pub fn init() void {
     ports.outb(PIT_CHANNEL0, @truncate(PIT_DIVISOR >> 8));
     idt.registerRawHandler(0x20, timerHandler);
     pic.unmaskIrqRaw(0);
+    tick_count = rtc.read() *% 100;
 }
